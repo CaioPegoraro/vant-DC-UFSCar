@@ -57,6 +57,8 @@
             this.serialPort1 = new System.IO.Ports.SerialPort(this.components);
             this.timerCOM = new System.Windows.Forms.Timer(this.components);
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.btnMmenos = new System.Windows.Forms.Button();
+            this.btnMmais = new System.Windows.Forms.Button();
             this.btnMparar = new System.Windows.Forms.Button();
             this.btnM4parar = new System.Windows.Forms.Button();
             this.btnM3parar = new System.Windows.Forms.Button();
@@ -104,8 +106,7 @@
             this.timerStatusConexao = new System.Windows.Forms.Timer(this.components);
             this.btnLiberarMotores = new System.Windows.Forms.Button();
             this.lblLiberarMotores = new System.Windows.Forms.Label();
-            this.btnMmenos = new System.Windows.Forms.Button();
-            this.btnMmais = new System.Windows.Forms.Button();
+            this.serialPort2 = new System.IO.Ports.SerialPort(this.components);
             this.btnCalibrarMotores.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.groupBox2.SuspendLayout();
@@ -400,6 +401,26 @@
             this.groupBox2.TabIndex = 9;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Sensores";
+            // 
+            // btnMmenos
+            // 
+            this.btnMmenos.Location = new System.Drawing.Point(190, 258);
+            this.btnMmenos.Name = "btnMmenos";
+            this.btnMmenos.Size = new System.Drawing.Size(34, 23);
+            this.btnMmenos.TabIndex = 50;
+            this.btnMmenos.Text = "-";
+            this.btnMmenos.UseVisualStyleBackColor = true;
+            this.btnMmenos.Click += new System.EventHandler(this.btnMmenos_Click);
+            // 
+            // btnMmais
+            // 
+            this.btnMmais.Location = new System.Drawing.Point(223, 258);
+            this.btnMmais.Name = "btnMmais";
+            this.btnMmais.Size = new System.Drawing.Size(34, 23);
+            this.btnMmais.TabIndex = 49;
+            this.btnMmais.Text = "+";
+            this.btnMmais.UseVisualStyleBackColor = true;
+            this.btnMmais.Click += new System.EventHandler(this.btnMmais_Click);
             // 
             // btnMparar
             // 
@@ -828,26 +849,6 @@
             this.lblLiberarMotores.TabIndex = 43;
             this.lblLiberarMotores.Text = "OFF";
             // 
-            // btnMmenos
-            // 
-            this.btnMmenos.Location = new System.Drawing.Point(190, 258);
-            this.btnMmenos.Name = "btnMmenos";
-            this.btnMmenos.Size = new System.Drawing.Size(34, 23);
-            this.btnMmenos.TabIndex = 50;
-            this.btnMmenos.Text = "-";
-            this.btnMmenos.UseVisualStyleBackColor = true;
-            this.btnMmenos.Click += new System.EventHandler(this.btnMmenos_Click);
-            // 
-            // btnMmais
-            // 
-            this.btnMmais.Location = new System.Drawing.Point(223, 258);
-            this.btnMmais.Name = "btnMmais";
-            this.btnMmais.Size = new System.Drawing.Size(34, 23);
-            this.btnMmais.TabIndex = 49;
-            this.btnMmais.Text = "+";
-            this.btnMmais.UseVisualStyleBackColor = true;
-            this.btnMmais.Click += new System.EventHandler(this.btnMmais_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -963,6 +964,7 @@
         private System.Windows.Forms.Button btnMparar;
         private System.Windows.Forms.Button btnMmenos;
         private System.Windows.Forms.Button btnMmais;
+        private System.IO.Ports.SerialPort serialPort2;
     }
 }
 

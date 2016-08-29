@@ -1,14 +1,20 @@
 //Receptor primário
 //Modelo: Arduino UNO
-//Objetivo: primeiro receptor, está conectado ao receptor wireless que é capaz de receber e enviar comandos, tem uma rotina de checagem por instruções
-//          do emissor, em caso positivo, envia as mesmas via IC2 para o receptor secundário.
-
+//Objetivo: primeiro receptor, está conectado ao receptor wireless que é capaz
+//de receber e enviar comandos, tem uma rotina de checagem por instruções
+//do emissor, em caso positivo, envia as mesmas via IC2 para o receptor secundário.
 
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
 #include "pacote.h"
 
+//canais de comunicação sem fio
+//como ele pode alternar entre emissor
+//e receptor temos que indicar o endereço
+//para leitura/escrita
+//no emissor primario os valores estao invertidos
+//pois sempre um for emissor o outro eh o receptor
 RF24 radio(7, 8);
 const byte rxAddr[6] = "00002";
 const byte wxAddr[6] = "00001";
@@ -28,7 +34,6 @@ const long interval = 700;
 
 //leitura da bateria
 int sensorValue;
-
 int led_conexao = 4;
 
 void setup()
@@ -41,6 +46,8 @@ void setup()
   Serial.begin(9600);
 
   //Wireless
+  //inicia as configurações para funcionar como
+  //um receptor
   radio.begin();
   radio.openWritingPipe(wxAddr);
   radio.openReadingPipe(0, rxAddr);
@@ -53,6 +60,10 @@ void setup()
 }
 
 //Função para enviar uma resposta para o emissor primário
+//eh feito a troca para função de "emissor", monta-se
+//o pacote de dados e eh feito algumas tentativas de
+//envio, dado que o emissor original também precisa
+//de um tempo para trocar de contexto e tornar um receptor.
 void enviaMsg(int cmd, int valor) {
   //Serial.println("Enviando resposta");
   radio.stopListening();
@@ -67,7 +78,8 @@ void enviaMsg(int cmd, int valor) {
 }
 
 void requestEvent() {
-
+//funcao originalmente para tratar de requisicoes 
+//do slave, mas nao foi utilizada.
 };
 
 void buzzer() {
@@ -77,11 +89,13 @@ void buzzer() {
 }
 
 
-//Função para enviar uma mensagem para o arduino mega (responsável pelo controle dos motores
-//OBS: para garantir a execução é utilizado o pino de interrupcçãoo do arduino mega, desviando
-//     para uma rotina de leitura IC2 que receberá o comando enviado do controlador.
+//Função para enviar uma mensagem para o arduino mega 
+//(responsável pelo controle dos motores)
 void enviaIC2() {
   Serial.println("enviando");
+  //constroi-se o pacote de dados montando um inteiro
+  //de 2 bytes, sendo cada byte formado pelo comando
+  //e por um valor associado:
   int valor_pacote = dados.cmd * 1000 + dados.valor;
   //Serial.println(dados.cmd);
   //Serial.println(dados.valor);
@@ -130,16 +144,16 @@ void loop()
     if (dados.cmd <= 124) { //comandos simples
 
       switch (dados.cmd) {
-        case 14: //Acionamento do buzzer
+          case 14: //Acionamento do buzzer
           status_buzzer = 1;
           break;
 
-        case 15: //Desligamento do buzzer
+          case 15: //Desligamento do buzzer
           status_buzzer = 0;
           break;
 
 
-        case 1: //Aciona motor1
+          case 1: //Aciona motor1
           enviaIC2();
           break;
 

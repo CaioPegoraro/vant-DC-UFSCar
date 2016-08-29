@@ -31,18 +31,25 @@ namespace VantPainelDeControle
         private void atualizaListaCOMs()
         {
             int i;
-            bool quantDiferente;    //flag para sinalizar que a quantidade de portas mudou
+            bool quantDiferente;  //flag para sinalizar que a quantidade de portas mudou
 
+            //considera que não existem portas diferentes
             i = 0;
             quantDiferente = false;
 
-            //se a quantidade de portas mudou
+            //verifica se a quantidade de itens na comboBox1
+            //é diferente das portas disponiveis:
             if (comboBox1.Items.Count == SerialPort.GetPortNames().Length)
             {
+                //se for igual, pode acontecer de ter alguma que é diferente:
+                //no caso de conectar outro dispositivo e tirar um que estava ligado.
+                //a quantidade continua igual mas as portas mudaram
                 foreach (string s in SerialPort.GetPortNames())
                 {
                     if (comboBox1.Items[i++].Equals(s) == false)
                     {
+                        //se achou um item diferente, marca que há 
+                        //portas que não estão listadas
                         quantDiferente = true;
                     }
                 }
@@ -50,13 +57,15 @@ namespace VantPainelDeControle
             }
             else
             {
+                //se o comprimento for diferente já sabemos que há 
+                //portas não listadas
                 quantDiferente = true;
             }
 
             //Se não foi detectado diferença
             if (quantDiferente == false)
             {
-                return;                     //retorna
+                return; //retorna sem alterações
             }
 
             //limpa comboBox
@@ -67,6 +76,7 @@ namespace VantPainelDeControle
             {
                 comboBox1.Items.Add(s);
             }
+
             //seleciona a primeira posição da lista
             if(comboBox1.Items.Count > 0)
             {
@@ -74,6 +84,9 @@ namespace VantPainelDeControle
             }
             else
             {
+                //isso é importante pois se você desconecta o
+                //único dispositivo não terá nada pra listar e
+                //vai dar um erro e encerrar o software
                 comboBox1.Text = " ";
             }
         }
@@ -91,36 +104,41 @@ namespace VantPainelDeControle
 
         private void button9_Click(object sender, EventArgs e)
         {
+            //verifica se a serial port está aberta
             if (serialPort1.IsOpen == false)
             {
+                //como não está, é feito uma tentativa de conexão
+                //com a porta que está selecionada no componente
+                //comboBox1:
                 try
                 {
                     serialPort1.PortName = comboBox1.Items[comboBox1.SelectedIndex].ToString();
                     serialPort1.Open();
-
                 }
                 catch
                 {
                     return;
-
                 }
                 if (serialPort1.IsOpen)
                 {
+                    //quando a conexão é feita com sucesso
+                    //altera o texto do botão para desconectar
+                    //e desabilita a comboBox1
                     btConectar.Text = "Desconectar";
                     comboBox1.Enabled = false;
-
+                    //Esse trecho escreve uma linha no componente utilizado
+                    //como prompt, ele é utilizado para listar um histórico
+                    //de comandos executados, tal como dados recebidos
                     textBoxReceber.AppendText("\n\n == Conectado ao emissor == \n");
                 }
             }
-            else
+            else //O click foi feito para efetuar a desconexão
             {
-
                 try
                 {
                     serialPort1.Close();
                     comboBox1.Enabled = true;
                     btConectar.Text = "Conectar";
-
                     textBoxReceber.AppendText("\n\n == Desconectado do emissor == \n");
                 }
                 catch
@@ -369,8 +387,8 @@ namespace VantPainelDeControle
 
         private void btnLiberarMotores_Click(object sender, EventArgs e)
         {   // cmd:
-            // 0080 # Liberar 
-            // 0090 # Travar
+            // 0008 # Liberar 
+            // 0009 # Travar
             // retorno: nao
             // valor: nao
 

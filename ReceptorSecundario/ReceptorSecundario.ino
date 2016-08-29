@@ -50,15 +50,17 @@ int valY2;
 
 int ledMpu = 8;
 
+int led_pid = 11;
+
 //PID EIXO X
 double setX = 0;
 double prevX = 0;//leitura passada
 double errorX = 0;
 
 //K: "peso" de cada coeficiente
-double kpX = 1.0,
+double kpX = 5.0,
        kiX = 0.0,
-       kdX = 1.0;
+       kdX = 10.0;
 
 //P: proporcional
 //I: integral
@@ -78,9 +80,9 @@ double prevY = 0;//leitura passada
 double errorY = 0;
 
 //K: "peso" de cada coeficiente
-double kpY = 1.0,
+double kpY = 7.0,
        kiY = 0.0,
-       kdY = 1.0;
+       kdY = 10.0;
 
 //P: proporcional
 //I: integral
@@ -104,34 +106,27 @@ int indiceMx = 1;
 float varTempo;
 float reguladorAtt = 0;
 float reguladorPrev = 0;
-
 //FIM VARIÁVEIS DO PID
+
+int tempOff = 1;
 
 void setup() {
 
   //MPU
   pinMode(ledMpu, OUTPUT);
-
+  pinMode(led_pid, OUTPUT);
+  
   Serial.println("Initialize MPU");
   mpu.initialize();
   if (mpu.testConnection()) {
     Serial.println("Connected");
     digitalWrite(ledMpu, HIGH);
-
-    //fazer leitura inicial do offset do acelerometro
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-
-    offX = map(ax, 13000, -13000, -50, 50);
-    offY = map(ay, -13000, 13000, -50, 50);
-
-
   }
   else {
     Serial.println("Connection failed");
   }
 
   //Motores
-
   for (int i = 0; i < 4; i++) {
     vBase[i] = 65;
     vPid[i] = 0;
@@ -188,6 +183,24 @@ void setup() {
 
 void loop() {
 
+  if (tempOff == 1) {
+
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+    offX = map(ax, 17000, -17000, -50, 50);
+    offY = map(ay, -17000, 17000, 50, -50);
+
+    offX = (-1) * offX;
+    offY = (-1) * offY;
+
+    Serial.print("Offx:");
+    Serial.println(offX);
+
+    Serial.print("Offy:");
+    Serial.println(offY);
+    tempOff = 0;
+  }
+
   //Loop: realiza operações de calibração nos motores (constitui uma das ações críticas de segurança para evitar casos em que
   //      os motores hajam de maneira inapropriada (operando em velocidade maxima sem controle por exemplo).
 
@@ -211,12 +224,15 @@ void loop() {
     delay(2);
 
   }
-  //flag de operação: indica execução de algum comando que utiliza algum dos motores
+  //flag de operação: indica execução de algum comando que
+  //utiliza algum dos motores
   //flag de ok: indica que os motores estao liberados por software
-  else if (flag_operacao == 1 && flag_ok == 1) { //nao precisa calibrar, entao vai processar a operação dos motores
+  else if (flag_operacao == 1 && flag_ok == 1) {
+    //nao precisa calibrar, entao vai processar a operação dos motores
     flag_operacao = 0; //a flag eh valida para uma operação
 
-    if (dados.valor < 180 && dados.valor > 60) { //faixa de operação dos motores
+    if (dados.valor < 180 && dados.valor > 60) {
+      //faixa de operação dos motores
 
       switch (dados.cmd) {
 
@@ -257,218 +273,250 @@ void loop() {
   }
   //Operação de estabilização do VANT
   else {
-    //    Serial.println("Estabilizando PID!");
-
-    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-
-    valX = map(ax, 13000, -13000, -50, 50);
-    valX += offX; //correção de hardware, o suporte do acelerometro faz com que o setpoint de
-    //equilibrio seja (-2,0) para (x,y), a soma corrige para usar o referencial (0,0).
-
-    valY = map(ay, -13000, 13000, -50, 50);
-    valY += offY; //correção de hardware, o suporte do acelerometro faz com que o setpoint de
-    //equilibrio seja (-2,0) para (x,y), a soma corrige para usar o referencial (0,0).
-
-    /*
-          Serial.print("aX: ");
-          Serial.print(valX);
-          Serial.print(", ");
-
-          Serial.print("Offx: ");
-          Serial.print(offX);
-          Serial.print(", ");
-
-          Serial.print("aY: ");
-          Serial.print(valY);
-          Serial.print(", ");
-
-          Serial.print("Offy: ");
-          Serial.println(offY);
-
-    */
-    //======= calcular PID para eixo Y  =======//
-    errorY = setY - valY;
-
-    //quanto tempo levou desde a ultima vez que executou o PID?
-    //tempo atual - ultimo tempo
-    varTempo = (millis() - prevProcY) / 1000.0;
-    prevProcY = millis();
-
-    varTempo = 1;
-
-    //Py
-    Py = errorY * kpY;
-
-    //Iy
-    Iy += (errorY * kiY) * (varTempo); //conversao do tempo para segundos
-
-    //Dy
-    Dy = (prevY - valY) * kdY / (varTempo);
-
-    //salva o valor da "leitura passada" para o proximo loop
-    prevY = valY;
-
-    PIDy = Py + Iy + Dy; // PIDy = 0 => Equilíbrio atingido!
-    
-/*
-            Serial.print(" Py: ");
-            Serial.print(Py);
-
-            Serial.print(", Iy: ");
-            Serial.print(Iy);
-
-            Serial.print(", Dy: ");
-            Serial.print(Dy);
-
-            Serial.print(" => Valor PIDy: ");
-            Serial.println(PIDy);
-    
-*/
-    //preparar o vetor de acrescimo para receber os dados do PIDy e PIDx
-
-    for(int k=0;k<4;k++){
-      vPid[k] =0;
-    }
-
-
-    //calcular o efeito do PID no eixo Y
-
-    //PIDy <0 : Inclinação do eixo dos motores 1 e 2 pra cima
-    //Ação: diminuir intensidade nos motores 1 e 2, acrescentar nos motores 3 e 4
-    if (PIDy < 0) {
-
-      vPid[0] += PIDy;
-      vPid[1] += PIDy;
-
-      vPid[2] += (-1)*PIDy;
-      vPid[3] += (-1)*PIDy;
-
-    }
-    //PIDy >0 : Inclinação do eixo dos motores 3 e 4 pra cima
-    //Ação: diminuir intensidade nos motores 3 e 4, acrescentar nos motores 1 e 2
-    else {
-
-      vPid[2] += (-1)*PIDy;
-      vPid[3] += (-1)*PIDy;
-
-      vPid[0] += PIDy;
-      vPid[1] += PIDy;
-
-    }
-
-    //======= calcular PID para eixo X  =======//
-    errorX = setX - valX;
-
-    //quanto tempo levou desde a ultima vez que executou o PID?
-    //tempo atual - ultimo tempo
-    varTempo = (millis() - prevProcX) / 1000.0;
-    prevProcX = millis();
-
-    varTempo = 1;
-
-    //Px
-    Px = errorX * kpX;
-
-    //Ix
-    Ix += (errorX * kiX) * (varTempo); //conversao do tempo para segundos
-
-    //Dx
-    Dx = (prevX - valX) * kdX / (varTempo);
-
-    //salva o valor da "leitura passada" para o proximo loop
-    prevX = valX;
-
-    PIDx = Px + Ix + Dx; // PIDx = 0 => Equilíbrio atingido!
-    /*
-           Serial.print(" Px: ");
-           Serial.print(Px);
-
-           Serial.print(", Ix: ");
-           Serial.print(Ix);
-
-           Serial.print(", Dx: ");
-           Serial.print(Dx);
-
-           Serial.print(" => Valor PIDx: ");
-           Serial.println(PIDx);
-    */
-
-    //calcular o efeito do PID no eixo X
-    
-    //PIDx <0 : Inclinação do eixo dos motores 1 e 3 pra cima
-    //Ação: diminuir intensidade nos motores 1 e 3, acrescentar nos motores 2 e 4
-    if (PIDx < 0) {
-
-      vPid[0] += PIDx;
-      vPid[2] += PIDx;
-
-      vPid[1] += (-1)*PIDx;
-      vPid[3] += (-1)*PIDx;
-
-    }
-    //PIDx >0 : Inclinação do eixo dos motores 4 e 2 pra cima
-    //Ação: diminuir intensidade nos motores 4 e 2, acrescentar nos motores 1 e 3
-    else {
-
-      vPid[1] += (-1)*PIDx;
-      vPid[3] += (-1)*PIDx;
-
-      vPid[0] += PIDx;
-      vPid[2] += PIDx;
-
-    }
 
     reguladorAtt = millis() / 1000.0;
 
     //Serial.println(reguladorAtt);
     //Serial.println(reguladorPrev);
 
-
     if ((reguladorAtt - reguladorPrev) > 1) {
-
+      digitalWrite(led_pid, HIGH);
+      //O loop de correcaoe executa em intervalos
+      //iguais ou maiores a 1segundo
       reguladorPrev = reguladorAtt;
 
+      //Serial.println("Estabilizando PID!");
+      //o calculo e a correção são feitos em intervalos
+      //de tempo: isso porque dado um desvio é aplicado
+      //um critério de correção somando e diminuindo
+      //a velocidade de certos motores,
+      //após o período pode ser que o ajuste não seja
+      //mais necessário (está estável), caso não
+      //então um ajuste em cima do ajuste anterior é feito.
+
+      mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+      valX = map(ax, 17000, -17000, -50, 50);
+      valX += offX; //correção de hardware,
+
+      valY = map(ay, -17000, 17000, 50, -50);
+      valY += offY;
+
+      /*
+                Serial.print("aX: ");
+                Serial.print(valX);
+                Serial.print(", ");
+
+                Serial.print("Offx: ");
+                Serial.print(offX);
+                Serial.print(", ");
+
+                Serial.print("aY: ");
+                Serial.print(valY);
+                Serial.print(", ");
+
+                Serial.print("Offy: ");
+                Serial.println(offY);
+
+      */
+
+      //======= calcular PID para eixo Y  =======//
+      errorY = setY - valY;
+
+      //quanto tempo levou desde a ultima vez que executou o PID?
+      //tempo atual - ultimo tempo
+      varTempo = (millis() - prevProcY) / 1000.0;
+      prevProcY = millis();
+
+      varTempo = 1;
+
+      //Py
+      Py = errorY * kpY;
+
+      //Iy
+      Iy += (errorY * kiY) * (varTempo);
+      //conversao do tempo para segundos
+
+      //Dy
+      Dy = (prevY - valY) * kdY / (varTempo);
+
+      //salva o valor da "leitura passada" para o proximo loop
+      prevY = valY;
+
+      PIDy = Py + Iy + Dy; // PIDy = 0 => Equilíbrio atingido!
+
+      /*
+                      Serial.print(" Py: ");
+                      Serial.print(Py);
+
+                      Serial.print(", Iy: ");
+                      Serial.print(Iy);
+
+                      Serial.print(", Dy: ");
+                      Serial.print(Dy);
+
+                      Serial.print(" => Valor PIDy: ");
+                      Serial.println(PIDy);
+
+      */
+      /*
+        //preparar o vetor de acrescimo para receber os dados do PIDy e PIDx
+        for (int k = 0; k < 4; k++) {
+        vPid[k] = 0;
+        }
+      */
+      //calcular o efeito do PID no eixo Y
+
+      //PIDy >0 : Inclinação do eixo dos motores 1 e 2 pra cima
+      //Ação: diminuir intensidade nos motores 1 e 2,
+      //acrescentar nos motores 3 e 4
+      int factor = 10;
+
+      PIDy = PIDy / factor;
+      //PIDy = 0;
+      if (PIDy > 0) {
+
+        vPid[2] += PIDy;
+        vPid[3] += PIDy;
+
+        vPid[0] += (-1) * PIDy;
+        vPid[1] += (-1) * PIDy;
+
+      }
+      //PIDy <0 : Inclinação do eixo dos motores 3 e 4 pra cima
+      //Ação: diminuir intensidade nos motores 3 e 4,
+      //acrescentar nos motores 1 e 2
+      else if (PIDy < 0) {
+
+        vPid[0] += (-1) * PIDy;
+        vPid[1] += (-1) * PIDy;
+
+        vPid[2] += PIDy;
+        vPid[3] += PIDy;
+
+      }
+
+      //======= calcular PID para eixo X  =======//
+      errorX = setX - valX;
+
+      //quanto tempo levou desde a ultima vez que executou o PID?
+      //tempo atual - ultimo tempo
+      varTempo = (millis() - prevProcX) / 1000.0;
+      prevProcX = millis();
+
+      varTempo = 1;
+
+      //Px
+      Px = errorX * kpX;
+
+      //Ix
+      Ix += (errorX * kiX) * (varTempo); //conversao do tempo para segundos
+
+      //Dx
+      Dx = (prevX - valX) * kdX / (varTempo);
+
+      //salva o valor da "leitura passada" para o proximo loop
+      prevX = valX;
+
+      PIDx = Px + Ix + Dx; // PIDx = 0 => Equilíbrio atingido!
+      /*
+            Serial.print(" Px: ");
+            Serial.print(Px);
+
+            Serial.print(", Ix: ");
+            Serial.print(Ix);
+
+            Serial.print(", Dx: ");
+            Serial.print(Dx);
+
+            Serial.print(" => Valor PIDx: ");
+            Serial.println(PIDx);
+      */
+
+      //calcular o efeito do PID no eixo X
+
+      //PIDx <0 : Inclinação do eixo dos motores 1 e 3 pra cima
+      //Ação: diminuir intensidade nos motores 1 e 3,
+      //acrescentar nos motores 2 e 4
+
+      PIDx = PIDx / factor;
+      //PIDx =0;
+      if (PIDx < 0) {
+
+        vPid[0] += PIDx;
+        vPid[2] += PIDx;
+
+        vPid[1] += (-1) * PIDx;
+        vPid[3] += (-1) * PIDx;
+
+      }
+      //PIDx >0 : Inclinação do eixo dos motores 4 e 2 pra cima
+      //Ação: diminuir intensidade nos motores 4 e 2,
+      //acrescentar nos motores 1 e 3
+      else if (PIDx > 0) {
+
+        vPid[1] += (-1) * PIDx;
+        vPid[3] += (-1) * PIDx;
+
+        vPid[0] += PIDx;
+        vPid[2] += PIDx;
+
+      }
 
       for (int j = 0; j < 4; j++) {
         Serial.print("M");
         Serial.print(j);
         Serial.print(": ");
+        //trava do intervalo de operação
+        if ((vBase[j] + vPid[j]) < 70) {
+          vPid[j] = (-1) * (vBase[j] - 70);
+        }
+        else if ((vBase[j] + vPid[j]) > 180) {
+          vPid[j] = 180 - vBase[j];
+        }
         Serial.println(vBase[j] + vPid[j]);
       }
       Serial.println("<========>");
 
+
+      //FIM DA ESTABILIZAÇÃO
+      digitalWrite(led_pid, LOW);
     }
 
-    //FIM DA ESTABILIZAÇÃO
-  }
+    delay(100);
 
-  delay(100);
-
-  /*
-    else { //parar motores
-      motor1.write(65);
-      motor2.write(65);
-      motor3.write(65);
-      motor4.write(65);
-      //Serial.println(65);
-    }
-  */
+    /*
+      else { //parar motores
+        motor1.write(65);
+        motor2.write(65);
+        motor3.write(65);
+        motor4.write(65);
+        //Serial.println(65);
+      }
+    */
+  } //fim do if para calculo do intervalo de tempo
 }
 
-// function that executes whenever data is received from master
-// this function is registered as an event, see setup()
+//A função trata de eventos recebidos do mestre (pela hierarquia IC2)
+//quando há um envio por parte dele o escravo (esse receptor)
+//desvia para tratamento do dado recebido, que consiste em
+//ativar um flag (como se fosse uma senha de banco) para o loop
+//executar uma operação unicamente.
+//e tb para salvar em uma variavel o valor do dado associado.
+//a função foi previamente configurada no setup para esse tipo
+//de tratamento.
 void receiveEvent(int howMany) {
   data = "";
-  while (Wire.available()) { // loop through all but the last
+  while (Wire.available()) { //enqnto estiver disponivel bytes
     data += (char)Wire.read();
   }
   int valor_data = data.toInt();
   //Serial.println(valor_data);
-
   dados.cmd = valor_data / 1000;
   dados.valor = valor_data - dados.cmd * 1000;
 
-  if (dados.cmd < 7) { //conjunto de comandos que vai acionar um ou mais motores
+  if (dados.cmd < 7) { //conjunto de comandos que vai
+    //acionar um ou mais motores
     flag_operacao = 1;
   }
   else if (dados.cmd == 7) {
@@ -484,7 +532,6 @@ void receiveEvent(int howMany) {
     flag_ok = 0;
     digitalWrite(led_Motores, LOW);
   }
-
   //Serial.println(dados.cmd);
   //Serial.println(dados.valor);
 }
