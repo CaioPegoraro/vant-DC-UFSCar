@@ -478,6 +478,11 @@ void loop() {
       }
       Serial.println("<========>");
 
+      //Atualiza o valor dos motores
+      motor1.write(vBase[0] + vPid[0]);
+      motor2.write(vBase[1] + vPid[1]);
+      motor3.write(vBase[2] + vPid[2]);
+      motor4.write(vBase[3] + vPid[3]);
 
       //FIM DA ESTABILIZAÇÃO
       digitalWrite(led_pid, LOW);
